@@ -1,0 +1,8 @@
+.DS_Store
+data/backtest
+data/json_data
+data/selected
+data/tdx_data
+logs
+node_modules
+result
