@@ -1,8 +1,8 @@
 {
-  "name": "convert-day-files",
+  "name": "A股选股及回测工具",
   "version": "1.0.0",
-  "description": "Convert .day stock files to JSON format",
-  "main": "convert_day_to_json.ts",
+  "description": "在A股市场按照策略选择股票，并对选择的股票进行盈利回测",
+  "main": "select_stock.ts",
   "scripts": {
     "getlist": "tsx src/get_stock_list_sina.ts",
     "convert": "tsx src/convert_tdx_to_json.ts",
@@ -11,7 +11,7 @@
     "kline": "tsx src/generate_kline.ts",
     "all": "npm run getlist && npm run convert && npm run select && npm run backtest && npm run kline"
   },
-  "author": "your_name",
+  "author": "George Zhu (geroge.zhu08@gmail.com)",
   "license": "MIT",
   "dependencies": {
     "axios": "^1.9.0",
