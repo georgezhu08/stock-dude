@@ -46,7 +46,7 @@
      |--select_stock.ts 选取股票
      |--backtest.ts 回测选出的股票
      |--generate_html.ts 根据回测结果生成静态页面
-     +--charts.ts 根据回测结果生成交易K线图
+     +--generate_kline.ts 根据回测结果生成交易K线图
 
 ```
 
