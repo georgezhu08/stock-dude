@@ -4,11 +4,11 @@
   "description": "Convert .day stock files to JSON format",
   "main": "convert_day_to_json.ts",
   "scripts": {
-    "getlist": "node --no-warnings --loader ts-node/esm src/get_stock_list_sina.ts",
-    "convert": "node --no-warnings --loader ts-node/esm src/convert_tdx_to_json.ts",
-    "select": "node --no-warnings --loader ts-node/esm src/select_stock.ts",
-    "backtest": "node --no-warnings --loader ts-node/esm src/backtest.ts",
-    "kline": "node --no-warnings --loader ts-node/esm src/generate_kline.ts",
+    "getlist": "tsx src/get_stock_list_sina.ts",
+    "convert": "tsx src/convert_tdx_to_json.ts",
+    "select": "tsx src/select_stock.ts",
+    "backtest": "tsx src/backtest.ts",
+    "kline": "tsx src/generate_kline.ts",
     "all": "npm run getlist && npm run convert && npm run select && npm run backtest && npm run kline"
   },
   "author": "your_name",
@@ -25,6 +25,7 @@
   "devDependencies": {
     "@types/cli-progress": "^3.11.6",
     "ts-node": "^10.9.2",
+    "tsx": "^4.19.4",
     "typescript": "^5.4.5"
   },
   "type": "module"

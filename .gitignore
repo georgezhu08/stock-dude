@@ -4,5 +4,6 @@ data/json_data
 data/selected
 data/tdx_data
 logs
+package-lock.json
 node_modules
 result
