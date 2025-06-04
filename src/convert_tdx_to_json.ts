@@ -1,20 +1,28 @@
-/**
- * 通达信 .day 文件格式：
- * 每条记录32字节，按顺序依次为：
- *   int32 日期（YYYYMMDD）
- *   int32 开盘价（单位：分）
- *   int32 最高价（单位：分）
- *   int32 最低价（单位：分）
- *   int32 收盘价（单位：分）
- *   int32 成交额（单位：分）
- *   int32 成交量（单位：股）
- *   int32 保留字段（未用）
- */
 import fs from 'fs/promises';
 import path from 'path';
 import { SingleBar, Presets } from 'cli-progress';
-import { StockDaily } from './types.js';
+import { StockDaily } from './types/stock.js';
+import { DividendRecord } from './read_dividend.js';
 
+
+// 新增：读取分红数据
+async function readDividendData(dividendFile: string): Promise<DividendRecord[]> {
+    try {
+        const content = await fs.readFile(dividendFile, 'utf-8');
+        const arr = JSON.parse(content) as DividendRecord[];
+        // 修正date字段为Date类型
+        for (const d of arr) {
+            // 若d.date已为字符串，转为Date对象
+            if (typeof d.date === 'string') {
+                d.date = new Date(d.date);
+            }
+        }
+        return arr;
+    } catch (e) {
+        console.warn(`未找到分红数据文件: ${dividendFile}`);
+        return [];
+    }
+}
 
 /**
  * 将原始日期整数转换为格式化字符串。
@@ -27,15 +35,35 @@ function formatDate(raw: number): string {
 }
 
 /**
- * 读取.day文件并将其二进制内容转换为StockDaily记录数组。
+ * 读取.day文件并将其二进制内容转换为StockDaily记录数组，并可根据分红数据进行除权处理。
  * @param filePath - .day文件的路径。
+ * @param dividendArr - 分红数据数组
+ * @param code - 股票代码
+ * @param adjustType - 除权方式: 'none' | 'qfq' | 'hfq'
  * @returns 从文件解析出的StockDaily记录数组。
  */
-async function readDayFile(filePath: string): Promise<StockDaily[]> {
+type AdjustType = 'none' | 'qfq' | 'hfq';
+export async function readDayFile(
+    filePath: string,
+    dividendArr: DividendRecord[] = [],
+    code: string = '',
+    adjustType: AdjustType = 'none'
+): Promise<StockDaily[]> {
     const buf = await fs.readFile(filePath);
     const recordSize = 32;
     const records: StockDaily[] = [];
 
+    /* 
+     * 通达信 .day 文件，每条记录32字节，按顺序依次为：
+     *   int32 日期（YYYYMMDD）
+     *   int32 开盘价（单位：分）
+     *   int32 最高价（单位：分）
+     *   int32 最低价（单位：分）
+     *   int32 收盘价（单位：分）
+     *   int32 成交额（单位：分）
+     *   int32 成交量（单位：股）
+     *   int32 保留字段（未用）
+     */
     for (let offset = 0; offset < buf.length; offset += recordSize) {
         const dateRaw = buf.readInt32LE(offset);
         const open = buf.readInt32LE(offset + 4);
@@ -56,17 +84,132 @@ async function readDayFile(filePath: string): Promise<StockDaily[]> {
         });
     }
 
+    if (adjustType !== 'none' && dividendArr.length > 0 && code) {
+        // 筛选出当前股票的分红数据
+        const dividends = dividendArr.filter(d => d.code === code);
+
+        // 将分红数据转换为 Map，以日期为键，方便快速查找
+        const dividendMap = new Map(
+            dividends.map(d => [d.date.toISOString().slice(0, 10), d])
+        );
+
+        // 用于存储每个日期的复权因子
+        const factorMap = new Map<string, number>();
+        let factor = 1; // 初始化复权因子为 1
+
+        if (adjustType === 'qfq') {
+            // 前复权：从后往前遍历记录
+            for (let i = records.length - 1; i >= 0; i--) {
+                factorMap.set(records[i].date, factor);
+
+                const div = dividendMap.get(records[i].date);
+                // **注意：分红因子应用在前一天**
+                if (div && i > 0) {
+                    const prev = records[i - 1];
+                    const bonusRatio = div.bonus / 10;
+                    const dispatchRatio = div.dispatch / 10;
+                    const splitRatio = div.splite || 1;
+                    const cash = div.cash / 10;
+                    const price = div.price;
+
+                    const adjustedClose = records[i].close / splitRatio;
+                    const equityBefore = 1;
+                    const equityAfter = 1 + bonusRatio + dispatchRatio;
+                    const totalValue = adjustedClose * equityBefore + price * dispatchRatio;
+                    const newPrice = (totalValue - cash) / equityAfter;
+                    const ratio = adjustedClose / newPrice;
+
+                    factor *= ratio;
+                    // factorMap.set(records[i - 1].date, factor);  // 可以不必set，已在循环最开始set
+                }
+            }
+
+            const baseFactor = factorMap.get(records[records.length - 1].date) || 1; // 前复权基于最后一条记录
+
+            // 应用复权因子到所有记录
+            const roundToPenny = (num: number) => Math.round(num * 100) / 100; // 保留两位小数
+            for (let i = 0; i < records.length; i++) {
+                const rec = records[i];
+                const f = factorMap.get(rec.date) || 1;
+                const appliedFactor = baseFactor / f;
+
+                rec.open = roundToPenny(rec.open * appliedFactor);
+                rec.high = roundToPenny(rec.high * appliedFactor);
+                rec.low = roundToPenny(rec.low * appliedFactor);
+                rec.close = roundToPenny(rec.close * appliedFactor);
+                rec.turnover = roundToPenny(rec.turnover * appliedFactor);
+            }
+
+        } else if (adjustType === 'hfq') {
+
+            // 后复权：从前往后遍历记录
+            let factor = 1; // 初始化复权因子
+            for (let i = 0; i < records.length; i++) {
+                const rec = records[i];
+                const div = dividendMap.get(rec.date);
+
+                if (div) {
+                    const cash = div.cash / 10; // 每股现金分红
+
+                    // 计算复权因子：除息后价格加上分红
+                    const ratio = (rec.close + cash) / rec.close;
+                    factor *= ratio;
+                }
+
+                // 保存当前因子
+                factorMap.set(rec.date, factor);
+            }
+
+            // 应用复权因子到所有记录
+            const roundToPenny = (num: number) => Math.round(num * 100) / 100;
+            for (let i = 0; i < records.length; i++) {
+                const rec = records[i];
+                const f = factorMap.get(rec.date) || 1;
+
+                // 直接乘以复权因子
+                rec.open = roundToPenny(rec.open * f);
+                rec.high = roundToPenny(rec.high * f);
+                rec.low = roundToPenny(rec.low * f);
+                rec.close = roundToPenny(rec.close * f);
+                rec.turnover = roundToPenny(rec.turnover * f);
+            }
+
+        }
+    }
+
+    for (let i = 0; i < records.length; i++) {
+        let sumTurnover = 0;
+        let sumVolume = 0;
+        for (let j = Math.max(0, i - 59); j <= i; j++) {
+            sumTurnover += records[j].turnover;
+            sumVolume += records[j].volume;
+        }
+        records[i].avgCost60 = sumVolume > 0 ? sumTurnover / sumVolume : null;
+    }
+
     return records;
 }
+
 
 /**
  * 将所有证券交易所目录（bj, sh, sz）的lday子文件夹中的.day文件转换为JSON格式，并与现有JSON数据合并。
  * @param inputRootDir - 包含bj/sh/sz子目录的根目录。
  * @param outputDir - 保存转换后JSON文件的目录。
  * @param indexFile - 股票列表索引文件的路径。
+ * @param adjustType - 除权方式: 'none' | 'qfq' | 'hfq'
+ * @param dividendFile - 分红数据文件路径
  */
-async function convertAllDayFiles(inputRootDir: string, outputDir: string, indexFile: string) {
+async function convertAllDayFiles(
+    inputRootDir: string,
+    outputDir: string,
+    indexFile: string,
+    adjustType: 'none' | 'qfq' | 'hfq' = 'none',
+    dividendFile: string = './data/json_data/divident.json'
+) {
     await fs.mkdir(outputDir, { recursive: true });
+
+    // 读取分红数据
+    const dividendArr = await readDividendData(dividendFile);
 
     const subDirs = ['bj', 'sh', 'sz'];
     let files: { file: string, dir: string, exchange: string }[] = [];
@@ -108,10 +251,11 @@ async function convertAllDayFiles(inputRootDir: string, outputDir: string, index
         const stockName = stockInfo ? stockInfo.name : `未知名称, code=${code}, exchange=${exchange}`;
 
         const inputPath = path.join(dir, file);
-        const outputPath = path.join(outputDir, file.replace('.day', '.json'));
+        const outputPath = path.join(outputDir, `${code}.json`);
 
         try {
-            const newData = await readDayFile(inputPath);
+            // 传入分红数据和除权方式
+            const newData = await readDayFile(inputPath, dividendArr, code, adjustType);
             let mergedData = newData;
             try {
                 const existingContent = await fs.readFile(outputPath, 'utf-8');
@@ -126,7 +270,7 @@ async function convertAllDayFiles(inputRootDir: string, outputDir: string, index
             await fs.writeFile(outputPath, JSON.stringify(mergedData, null, 2), 'utf-8');
             bar.increment({ file: `${code}.${exchange.toUpperCase()} (${stockName})` });
         } catch (err) {
-            console.error(`❌ 转换失败 ${file}:`, err);
+            console.error(`转换失败 ${file}:`, err);
         }
     }
 
@@ -134,10 +278,27 @@ async function convertAllDayFiles(inputRootDir: string, outputDir: string, index
     console.log('\n所有文件已转换完成');
 }
 
-(async () => {
-    const inputRootDir = './data/tdx_data';    // 根目录，包含bj/sh/sz子目录
-    const outputDir = './data/json_data';      // 转换后JSON文件的保存目录
-    const indexFile = path.join('data', 'stock_list.json');
+// 优先使用环境变量，其次命令行参数，最后默认
+let adjustType: 'none' | 'qfq' | 'hfq' = 'none';
+const envAdjust = process.env.ADJUST_TYPE;
+if (envAdjust === 'qfq' || envAdjust === 'hfq' || envAdjust === 'none') {
+    adjustType = envAdjust;
+} else {
+    const args = process.argv.slice(2);
+    if (args.includes('--qfq')) adjustType = 'qfq';
+    if (args.includes('--hfq')) adjustType = 'hfq';
+}
 
-    await convertAllDayFiles(inputRootDir, outputDir, indexFile);
+(async () => {
+    if (!import.meta.vitest) {
+        let adjustTypeText = '不复权';
+        if (adjustType === 'qfq') adjustTypeText = '前复权';
+        else if (adjustType === 'hfq') adjustTypeText = '后复权';
+        console.log(`复权方式: ${adjustTypeText}`);
+        const inputRootDir = './data/tdx_data';    // 根目录，包含bj/sh/sz子目录
+        const outputDir = './data/json_data';      // 转换后JSON文件的保存目录
+        const indexFile = path.join('data', 'stock_list.json');
+        const dividendFile = './data/json_data/divident.json';
+        await convertAllDayFiles(inputRootDir, outputDir, indexFile, adjustType, dividendFile);
+    }
 })();

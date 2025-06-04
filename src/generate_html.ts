@@ -29,12 +29,13 @@ export async function generateSummaryHtml(summaryPath: string, htmlDir: string, 
     for (const row of summaryList) {
         let trades = [];
         try {
-            const tradeFile = path.join(tradeDir, `${row.exchange}${row.code}.json`);
+            // 文件名只用股票代码，不加交易所前缀
+            const tradeFile = path.join(tradeDir, `${row.code}.json`);
             const tradeContent = await fs.readFile(tradeFile, 'utf-8');
             trades = JSON.parse(tradeContent);
         } catch { }
-        // 增加 data-img 属性，指向对应K线图
-        stockDetails[`${row.exchange}${row.code}`] = `
+        // 增加 data-img 属性，指向对应K线图（路径也不加前缀）
+        stockDetails[`${row.code}`] = `
   <table>
     <thead>
       <tr>
@@ -43,8 +44,8 @@ export async function generateSummaryHtml(summaryPath: string, htmlDir: string, 
     </thead>
     <tbody>
       ${trades.map((t: any) => {
-        // 正确的K线图路径：images/交易所+股票代码/交易所+股票代码_买入日期_卖出日期.png
-        const imgPath = `images/${row.exchange}${row.code}/${row.exchange}${row.code}_${t.buyDate}_${t.sellDate}.png`;
+        // K线图路径：images/股票代码/股票代码_买入日期_卖出日期.png
+        const imgPath = `images/${row.code}/${row.code}_${t.buyDate}_${t.sellDate}.png`;
         return `
         <tr class="trade-row" data-img="${imgPath}">
           <td>${t.buyDate}</td>
@@ -61,8 +62,8 @@ export async function generateSummaryHtml(summaryPath: string, htmlDir: string, 
     }
 
     const firstStock = summaryList[0];
-    const firstId = `detail-${firstStock.exchange}${firstStock.code}`;
-    const firstTitle = `${firstStock.exchange}${firstStock.code} ${firstStock.name} Backtest Details`;
+    const firstId = `detail-${firstStock.code}`;
+    const firstTitle = `${firstStock.code} ${firstStock.name} Backtest Details`;
 
     const htmlContent = `<!DOCTYPE html>
 <html lang="en">
@@ -193,9 +194,9 @@ export async function generateSummaryHtml(summaryPath: string, htmlDir: string, 
       <div class="left">
         <table><thead><tr><th>Index</th><th>Code</th><th>Name</th><th>Trade Count</th><th>Total Return (%)</th><th>Average Return (%)</th><th>Total Holding Days</th></tr></thead><tbody>
         ${summaryList.map((row, idx) => `
-          <tr class='stock-row' data-code='${row.code}' data-exchange='${row.exchange}' data-title='${row.exchange}${row.code} ${row.name} Backtest Details'>
+          <tr class='stock-row' data-code='${row.code}' data-title='${row.code} ${row.name} Backtest Details'>
             <td>${idx + 1}</td>
-            <td>${row.exchange}${row.code}</td>
+            <td>${row.code}</td>
             <td>${row.name}</td>
             <td>${row.tradeCount}</td>
             <td class="${row.totalReturnPct >= 0 ? 'pos' : 'neg'}">${row.totalReturnPct.toFixed(2)}</td>
@@ -206,14 +207,14 @@ export async function generateSummaryHtml(summaryPath: string, htmlDir: string, 
       </div>
       <div class="right">
         ${summaryList.map((row, idx) => {
-    const id = `detail-${row.exchange}${row.code}`;
+    const id = `detail-${row.code}`;
     return `<div id="${id}" class="detail-block" style="display:${idx === 0 ? 'block' : 'none'}; width:100%; height:100%; position:relative;">
       <div class="kline-fixed">
         <img class="kline-img" style="max-width:100%;max-height:340px;display:none;" />
         <span class="kline-placeholder">K线图预览区</span>
       </div>
       <div class="trade-scroll">
-        ${stockDetails[`${row.exchange}${row.code}`]}
+        ${stockDetails[`${row.code}`]}
       </div>
     </div>`;
   }).join('')}
@@ -231,8 +232,7 @@ export async function generateSummaryHtml(summaryPath: string, htmlDir: string, 
       }
       row.addEventListener('click', function() {
         var code = this.getAttribute('data-code');
-        var exchange = this.getAttribute('data-exchange');
-        var id = "detail-" + exchange + code;
+        var id = "detail-" + code;
         var title = this.getAttribute('data-title');
         if (lastDetailId !== id) {
           document.getElementById(lastDetailId).style.display = 'none';

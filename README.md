@@ -25,12 +25,15 @@
 |    |    +-- selected.json 选出的股票
 |    |
 |    +--tdx_data 通达信原始数据 （用通达信软件导出）
-|         |--bj 北交所
-|         |   +--lday 日线
-|         |--sh 上交所
-|         |   +--lday 日线
-|         +--sz 深交所
-|             +--lday 日线
+|    |    |--bj 北交所
+|    |    |   +--lday 日线
+|    |    |--sh 上交所
+|    |    |   +--lday 日线
+|    |    +--sz 深交所
+|    |        +--lday 日线
+|    |
+|    +--dzh_data 大智慧除权数据
+|         +--SPLIT.PWR
 |
 +--logs 日志 （npm run select 生成）
 |    +--selected.log 选股过程日志
@@ -38,7 +41,7 @@
 +--result 回测结果
 |    |--images
 |    |    +--*.png K线图 （npm run kline 生成）
-|    +--summary.html 回测结果汇总 （npm run backtest 生成）
+|    +--index.html 回测结果汇总 （npm run backtest 生成）
 |
 +--src 源码
      |--get_stock_list_sina.ts 读取股票列表
@@ -65,11 +68,12 @@ npm install
 运行次序：
 
 ```
-npm run getlist  （获取最新的股票列表）
-npm run convert  （将通达信日线数据转换为JSON格式）
-npm run select   （按照策略选择股票）
-npm run backtest （回测选中的股票）
-npm run kline    （生成回测的所有交易的K线图)
+npm run getlist   (获取最新的股票列表)
+npm run divident  (将大智慧除权数据转换为JSON格式)
+npm run convert   (将通达信日线数据转换为JSON格式)
+npm run select    (按照策略选择股票)
+npm run backtest  (回测选中的股票)
+npm run kline     (生成回测的所有交易的K线图)
 ```
 如果想一次执行完所有步骤（事先已经把通达信数据准备好）:
 ```
@@ -115,7 +119,7 @@ npm run convert
 ```
 
 
-- 可能会看到一些“未知名称”，这些是债券或者ETF之类的，如果有兴趣，可以自行修改```getStock_list_sina.ts```文件，增加缺失的内容。
+- 可能会看到一些“未知名称”，这些是债券之类的，如果有兴趣，可以自行修改```getStock_list_sina.ts```文件，增加缺失的内容。
 
 - 导出后可以删除通达信原文件，之后每天收盘后，将生成的当日数据复制到```tdx_data```中，再次运行转换程序，就能导入新增的数据。
 
@@ -161,7 +165,7 @@ npm run backtest
 }]
 ```
 
-- 同时会生成一个汇总的JSON文件 ```data/backtest/trade_records_symmary.json```，以及静态页面 ```result/summary.html```，静态页面中包含了每个股票的交易细节。
+- 同时会生成一个汇总的JSON文件 ```data/backtest/trade_records_symmary.json```，以及静态页面 ```result/index.html```，静态页面中包含了每个股票的交易细节。
 
 #### 2.4 生成K线图
 后期考虑接入在线实时K线，目前先临时用日线数据绘制交易时段的K线图，时段包括了交易时段前后各15交易日的额外数据，执行命令：

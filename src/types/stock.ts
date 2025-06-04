@@ -1,12 +1,13 @@
 // 股票日线数据类型
 export interface StockDaily {
-    date: string;       // 日期
-    open: number;       // 开盘价
-    high: number;       // 最高价
-    low: number;        // 最低价
-    close: number;      // 收盘价
-    turnover: number;   // 成交额
-    volume: number;     // 成交量
+    date: string;         // 日期
+    open: number;         // 开盘价
+    high: number;         // 最高价
+    low: number;          // 最低价
+    close: number;        // 收盘价
+    turnover: number;     // 成交额
+    volume: number;       // 成交量
+    avgCost60?: number | null; // 60日平均成本（可选）
 };
 
 // 回测交易记录类型

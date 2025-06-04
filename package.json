@@ -5,11 +5,13 @@
   "main": "select_stock.ts",
   "scripts": {
     "getlist": "tsx src/get_stock_list_sina.ts",
-    "convert": "tsx src/convert_tdx_to_json.ts",
+    "convert": "tsx src/convert_tdx_to_json.ts -- --qfq",
+    "dividend": "tsx src/read_dividend.ts",
     "select": "tsx src/select_stock.ts",
     "backtest": "tsx src/backtest.ts",
     "kline": "tsx src/generate_kline.ts",
-    "all": "npm run getlist && npm run convert && npm run select && npm run backtest && npm run kline"
+    "all": "npm run getlist && npm run convert && npm run select && npm run backtest && npm run kline",
+    "test": "npx vitest run"
   },
   "author": "George Zhu (geroge.zhu08@gmail.com)",
   "license": "MIT",
@@ -19,13 +21,15 @@
     "cli-progress": "^3.12.0",
     "echarts": "^5.6.0",
     "http": "^0.0.1-security",
+    "iconv-lite": "^0.6.3",
     "node-fetch": "^3.3.2",
     "puppeteer": "^24.9.0"
   },
   "devDependencies": {
     "@types/cli-progress": "^3.11.6",
     "tsx": "^4.19.4",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^3.2.1"
   },
   "type": "module"
 }

@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import puppeteer from 'puppeteer';
-import { StockDaily } from './types.js';
+import { StockDaily } from './types/stock.js';
 
 /**
  * 生成指定日期区间的K线图数据（二维数组，适合ECharts等前端库）。

@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { SingleBar, Presets } from 'cli-progress';
-import { StockDaily } from './types.js';
+import { StockDaily } from './types/stock.js';
 
 
 /**
@@ -106,19 +106,19 @@ async function scanAndSelectStocks(jsonDir: string, indexPath: string) {
 
     // Initialize progress bar
     const progressBar = new SingleBar({
-        format: 'Scanning Stocks | {bar} | {percentage}% | {value}/{total} Stocks',
+        format: 'Scanning stocks | {bar} | {percentage}% | {value}/{total} stocks',
         hideCursor: true
     }, Presets.shades_classic);
     progressBar.start(indexArr.length, 0);
 
     for (let i = 0; i < indexArr.length; i++) {
         const { code, name, exchange } = indexArr[i];
-        const jsonFile = path.join(jsonDir, `${exchange}${code}.json`);
+        const jsonFile = path.join(jsonDir, `${code}.json`);
         try {
             const content = await fs.readFile(jsonFile, 'utf-8');
             const data: StockDaily[] = JSON.parse(content);
             if (await checkStockWithPrint(data, name, true)) {
-                const key = exchange + code;
+                const key = code; // 只用code作为唯一标识
                 if (!selectedSet.has(key)) {
                     selected.push({ code, name, exchange });
                     selectedSet.add(key);

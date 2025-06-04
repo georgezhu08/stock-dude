@@ -32,7 +32,8 @@ async function readStockHistory(params: KLineParams): Promise<StockDaily[]> {
     const file = path.join(
         __dirname,
         "../data/json_data",
-        `${params.exchange}${params.code}.json`
+        // 只用股票代码，不加交易所前缀
+        `${params.code}.json`
     );
     const content = await fs.readFile(file, "utf-8");
     const data = JSON.parse(content) as StockDaily[];
@@ -247,9 +248,10 @@ export async function generateKLineChart(params: KLineParams): Promise<string> {
             ? params.outDir
             : path.join(__dirname, "..", params.outDir)
         : path.join(__dirname, "../result/images");
+    // 文件名只用股票代码
     const outPath = path.join(
         outDir,
-        `${params.exchange}${params.code}_${params.buyDate}_${params.sellDate}.png`
+        `${params.code}_${params.buyDate}_${params.sellDate}.png`
     );
     await drawKLine(stockData, outPath, 1200, 600, params.buyDate, params.sellDate);
     return outPath;
@@ -268,7 +270,8 @@ type StockSummary = {
 };
 
 async function readAllDaily(exchange: string, code: string): Promise<any[]> {
-    const file = path.join(__dirname, "../data/json_data", `${exchange}${code}.json`);
+    // 只用股票代码，不加交易所前缀
+    const file = path.join(__dirname, "../data/json_data", `${code}.json`);
     const content = await fs.readFile(file, "utf-8");
     return JSON.parse(content);
 }
@@ -301,7 +304,8 @@ async function main() {
     }[] = [];
 
     for (const stock of summaryList) {
-        const tradeFile = path.join(tradeDir, `${stock.exchange}${stock.code}.json`);
+        // 文件名只用股票代码
+        const tradeFile = path.join(tradeDir, `${stock.code}.json`);
         let trades: Trade[] = [];
         try {
             const tradeContent = await fs.readFile(tradeFile, "utf-8");
@@ -316,7 +320,7 @@ async function main() {
         try {
             daily = await readAllDaily(stock.exchange, stock.code);
         } catch {
-            console.error(`读取${stock.exchange}${stock.code}日线数据失败`);
+            console.error(`读取${stock.code}日线数据失败`);
             continue;
         }
 
@@ -348,7 +352,8 @@ async function main() {
         const start = daily[startIdx].date;
         const end = daily[endIdx].date;
 
-        const outDir = path.join(resultDir, `${stock.exchange}${stock.code}`);
+        // 输出目录只用股票代码
+        const outDir = path.join(resultDir, `${stock.code}`);
         await generateKLineChart({
             exchange: stock.exchange,
             code: stock.code,

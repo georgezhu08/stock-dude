@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { generateSummaryHtml } from './generate_html.js';
 
-import type { StockDaily, TradeRecord } from './types.js';
+import type { StockDaily, TradeRecord } from './types/stock.js';
 
 function sma(arr: number[], period: number): number[] {
     const result: number[] = [];
@@ -22,11 +22,10 @@ function sma(arr: number[], period: number): number[] {
  * 读取特定股票的历史数据
  * @param jsonDir JSON文件目录
  * @param code 股票代码
- * @param exchange 股票交易所
  * @returns 股票的历史数据
  */
-async function readStockHistory(jsonDir: string, code: string, exchange: string): Promise<StockDaily[]> {
-    const file = path.join(jsonDir, `${exchange}${code}.json`);
+async function readStockHistory(jsonDir: string, code: string): Promise<StockDaily[]> {
+    const file = path.join(jsonDir, `${code}.json`);
     const content = await fs.readFile(file, 'utf-8');
     return JSON.parse(content) as StockDaily[];
 }
@@ -216,10 +215,10 @@ async function main() {
     // 1. 回测并保存结果
     for (const stock of selected) {
         try {
-            const data = await readStockHistory(jsonDir, stock.code, stock.exchange);
+            const data = await readStockHistory(jsonDir, stock.code);
             const result = backtestMultiTrades(stock.code, stock.name, data);
-            // 保存每只股票的回测结果
-            const stockFile = path.join(backtestDir, `${stock.exchange}${stock.code}.json`);
+            // 保存每只股票的回测结果（文件名只用股票代码）
+            const stockFile = path.join(backtestDir, `${stock.code}.json`);
             await fs.writeFile(stockFile, JSON.stringify(result, null, 2), 'utf-8');
             // 统计摘要
             const totalReturnPct = result.reduce((sum, r) => sum + r.returnPct, 0);

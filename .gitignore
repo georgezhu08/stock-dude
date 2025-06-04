@@ -3,6 +3,7 @@ data/backtest
 data/json_data
 data/selected
 data/tdx_data
+data/dzh_data
 logs
 package-lock.json
 node_modules
