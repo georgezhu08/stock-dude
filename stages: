@@ -1,0 +1,38 @@
+stages:
+  - install
+  - test
+  - build
+
+variables:
+  NODE_ENV: production
+
+cache:
+  paths:
+    - node_modules/
+
+before_script:
+  - npm install
+
+install_dependencies:
+  stage: install
+  script:
+    - npm install
+  artifacts:
+    paths:
+      - node_modules/
+
+run_tests:
+  stage: test
+  script:
+    - npm run test
+  artifacts:
+    paths:
+      - coverage/
+
+build_project:
+  stage: build
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - dist/

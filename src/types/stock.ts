@@ -8,6 +8,10 @@ export interface StockDaily {
     turnover: number;     // 成交额
     volume: number;       // 成交量
     avgCost60?: number | null; // 60日平均成本（可选）
+    avgPositionCost?: number | null; // 平均持仓成本（可选）
+    profitRatio?: number | null;     // 获利盘比例（可选，0-1之间）
+    chipConcentration90?: number | null; // 90%筹码集中度（可选）
+    chipRange90?: [number, number] | null; // 90%筹码价格分布范围（可选，区间：[最低价, 最高价]）
 };
 
 // 回测交易记录类型

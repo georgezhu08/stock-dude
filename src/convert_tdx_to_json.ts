@@ -177,6 +177,9 @@ export async function readDayFile(
         }
     }
 
+    // 复权处理后再进行所有字段的计算
+
+    // 计算60日平均成本
     for (let i = 0; i < records.length; i++) {
         let sumTurnover = 0;
         let sumVolume = 0;
@@ -185,6 +188,58 @@ export async function readDayFile(
             sumVolume += records[j].volume;
         }
         records[i].avgCost60 = sumVolume > 0 ? sumTurnover / sumVolume : null;
+    }
+
+    // 计算平均持仓成本（全区间均价）
+    let totalTurnover = 0;
+    let totalVolume = 0;
+    for (let i = 0; i < records.length; i++) {
+        totalTurnover += records[i].turnover;
+        totalVolume += records[i].volume;
+        records[i].avgPositionCost = totalVolume > 0 ? totalTurnover / totalVolume : null;
+    }
+
+    // 计算获利盘比例（以close大于全区间均价为获利盘）
+    for (let i = 0; i < records.length; i++) {
+        const avgCost = records[i].avgPositionCost;
+        if (avgCost == null) {
+            records[i].profitRatio = null;
+        } else {
+            // 统计历史收盘价高于当前均价的天数比例
+            const winDays = records.slice(0, i + 1).filter(r => r.close > avgCost).length;
+            records[i].profitRatio = (i + 1) > 0 ? winDays / (i + 1) : null;
+        }
+    }
+
+    // 计算90%筹码集中度和价格分布范围
+    for (let i = 0; i < records.length; i++) {
+        // 取前90天（含当天），不足90天则取已有
+        const window = records.slice(Math.max(0, i - 89), i + 1);
+        // 按价格分布统计成交量
+        const priceVolume: { price: number, volume: number }[] = window.map(r => ({ price: r.close, volume: r.volume }));
+        priceVolume.sort((a, b) => a.price - b.price);
+
+        const totalVol = priceVolume.reduce((sum, pv) => sum + pv.volume, 0);
+        let cumVol = 0;
+        let lower = null, upper = null;
+        // 找到90%区间
+        for (let j = 0; j < priceVolume.length; j++) {
+            cumVol += priceVolume[j].volume;
+            if (lower === null && cumVol >= totalVol * 0.05) {
+                lower = priceVolume[j].price;
+            }
+            if (upper === null && cumVol >= totalVol * 0.95) {
+                upper = priceVolume[j].price;
+                break;
+            }
+        }
+        if (lower !== null && upper !== null) {
+            records[i].chipRange90 = [lower, upper];
+            records[i].chipConcentration90 = (upper - lower) / (window[window.length - 1].close || 1);
+        } else {
+            records[i].chipRange90 = null;
+            records[i].chipConcentration90 = null;
+        }
     }
 
     return records;

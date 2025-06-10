@@ -24,7 +24,6 @@ export async function generateSummaryHtml(summaryPath: string, htmlDir: string, 
     const genTime = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ` +
         `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
-    // Keep only the table
     const stockDetails: Record<string, string> = {};
     for (const row of summaryList) {
         let trades = [];
@@ -33,6 +32,12 @@ export async function generateSummaryHtml(summaryPath: string, htmlDir: string, 
             const tradeFile = path.join(tradeDir, `${row.code}.json`);
             const tradeContent = await fs.readFile(tradeFile, 'utf-8');
             trades = JSON.parse(tradeContent);
+            // 按买入日期降序排序（最新在前）
+            trades.sort((a: any, b: any) => {
+                if (a.buyDate < b.buyDate) return 1;
+                if (a.buyDate > b.buyDate) return -1;
+                return 0;
+            });
         } catch { }
         // 增加 data-img 属性，指向对应K线图（路径也不加前缀）
         stockDetails[`${row.code}`] = `
